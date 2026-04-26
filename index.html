@@ -593,10 +593,19 @@ function populateFilters() {
 function getFiltered() {
   const ft = document.getElementById('filtroTipo').value;
   const fs = document.getElementById('filtroStatus').value;
+  const today = new Date();
+  const isCurrentMonth = (currentMonth === today.getMonth() && currentYear === today.getFullYear());
+
   return TODOS.filter(e => {
     const matchT = !ft || e.tipo === ft;
     const matchS = !fs || e.status === fs;
-    const matchM = !e.data || (
+
+    if (!e.data) {
+      // Eventos sem data: só aparecem no mês atual real
+      return matchT && matchS && isCurrentMonth;
+    }
+    // Eventos com data: filtrar pelo mês/ano do calendário
+    const matchM = (
       parseInt(e.data.substring(5,7)) - 1 === currentMonth &&
       parseInt(e.data.substring(0,4)) === currentYear
     );
@@ -678,10 +687,12 @@ function renderCal() {
 
   html += '</div></div>';
 
-  // Eventos sem data no mês atual
-  const semDataEvs = TODOS.filter(e => !e.data);
-  if (semDataEvs.length && currentView === 'cal') {
-    html += '<div style="margin-top:8px;font-size:11px;font-weight:700;color:var(--dgray);padding:4px 0;">SEM DATA DEFINIDA</div>';
+  // Eventos sem data — só mostra no mês atual real
+  const today2 = new Date();
+  const isCurrentMonth2 = (currentMonth === today2.getMonth() && currentYear === today2.getFullYear());
+  const semDataEvs = isCurrentMonth2 ? TODOS.filter(e => !e.data) : [];
+  if (semDataEvs.length) {
+    html += '<div style="margin-top:16px;margin-bottom:8px;font-size:11px;font-weight:700;color:var(--dgray);padding:4px 0;border-top:2px solid var(--gold);">SEM DATA DEFINIDA</div>';
     html += '<div class="events-list">';
     semDataEvs.forEach(e => html += eventCard(e));
     html += '</div>';
@@ -694,8 +705,22 @@ function renderCal() {
 function renderList() {
   const filtered = getFiltered();
   if (!filtered.length) return emptyState();
-  filtered.sort((a,b) => (a.data || 'z') > (b.data || 'z') ? 1 : -1);
-  return '<div class="events-list">' + filtered.map(eventCard).join('') + '</div>';
+
+  const comData  = filtered.filter(e => e.data).sort((a,b) => a.data > b.data ? 1 : -1);
+  const semData  = filtered.filter(e => !e.data);
+
+  let html = '';
+
+  if (comData.length) {
+    html += '<div class="events-list">' + comData.map(eventCard).join('') + '</div>';
+  }
+
+  if (semData.length) {
+    html += '<div style="margin:16px 0 8px;font-size:11px;font-weight:700;color:var(--dgray);letter-spacing:.5px;padding:4px 0;border-top:2px solid var(--gold);">SEM DATA DEFINIDA</div>';
+    html += '<div class="events-list">' + semData.map(eventCard).join('') + '</div>';
+  }
+
+  return html || emptyState();
 }
 
 // ── View: Próximos ────────────────────────────────────────────────────────────
